@@ -27,43 +27,67 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
+    signingConfigs {
         release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            def keystorePath = System.getenv("ORG_GRADLE_PROJECT_ciKeystoreFile")
+
+            if (keystorePath != null && !keystorePath.isEmpty()) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ORG_GRADLE_PROJECT_ciKeystorePassword")
+                keyAlias System.getenv("ORG_GRADLE_PROJECT_ciKeyAlias")
+                keyPassword System.getenv("ORG_GRADLE_PROJECT_ciKeyPassword")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
     tasks.withType(JavaCompile).configureEach {
         options.compilerArgs << "-Xlint:deprecation" << "-Xlint:unchecked"
     }
+
     kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
+
     buildFeatures {
         compose true
         buildConfig true
     }
+
     flavorDimensions += "version"
+
     productFlavors {
         open {
             dimension = "version"
             applicationId = "sangiorgi.wps.opensource"
 
-            resValue "string", "app_name", "Wps Wpa Tester OpenSource"
+            resValue "string", "app_name", "WPSman"
             buildConfigField "String", "DATA_DIR", "\"/data/data/sangiorgi.wps.opensource/\""
         }
     }
 }
 
 dependencies {
-
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.activity.compose
@@ -73,41 +97,36 @@ dependencies {
     implementation libs.androidx.ui.tooling.preview
     implementation libs.androidx.material3
 
-    // Compose additional
     implementation libs.androidx.compose.material.icons.extended
     implementation libs.androidx.lifecycle.viewmodel.compose
     implementation libs.androidx.lifecycle.runtime.compose
     implementation libs.androidx.navigation.compose
 
-    // Hilt for dependency injection
     implementation libs.hilt.android
     kapt libs.hilt.compiler
     implementation libs.androidx.hilt.navigation.compose
 
-    // Coroutines
     implementation libs.kotlinx.coroutines.android
-
-    // Kotlin Serialization (for type-safe navigation)
     implementation libs.kotlinx.serialization.json
 
-    // LibSu for root operations
     implementation libs.core
     implementation libs.service
     implementation libs.nio
 
     implementation libs.commons.lang3
 
-    // WPS Connection Library
     implementation 'com.github.fulvius31:WpsConnectionLibrary:v2.0.0'
 
     testImplementation libs.junit
     testImplementation libs.mockito.core
     testImplementation libs.mockito.kotlin
     testImplementation libs.kotlinx.coroutines.test
+
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core
     androidTestImplementation platform(libs.androidx.compose.bom)
     androidTestImplementation libs.androidx.ui.test.junit4
+
     debugImplementation libs.androidx.ui.tooling
     debugImplementation libs.androidx.ui.test.manifest
 }
