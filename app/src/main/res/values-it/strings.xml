@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">WiFi WPS WPA Tester</string>
+    <string name="app_name">WPSman</string>
 
     <!-- Legacy strings -->
     <string name="connessione">Connessione in corso</string>
