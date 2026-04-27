@@ -1,63 +1,121 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
-
-# Keep line numbers for debugging crash reports
+##################################################
+# 🔹 Debugging (keep stack traces readable)
+##################################################
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Hilt
+##################################################
+# 🔹 Hilt / Dagger (CRITICAL)
+##################################################
 -keep class javax.inject.** { *; }
+-keep class dagger.hilt.** { *; }
+
+# Hilt generated classes
+-keep class * extends dagger.hilt.internal.GeneratedComponent { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ComponentSupplier { *; }
--keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 
-# LibSu (Root library)
--keep class com.topjohnwu.superuser.** { *; }
--keep class com.topjohnwu.superuser.internal.** { *; }
+# Factories & Injectors
+-keep class **_Factory { *; }
+-keep class **_MembersInjector { *; }
+-keep class **_HiltModules_* { *; }
 
-# Keep algorithm classes (reflection may be used for PIN generation)
--keep class sangiorgi.wps.opensource.algorithm.** { *; }
--keep class sangiorgi.wps.opensource.algorithm.strategy.** { *; }
--keep class sangiorgi.wps.opensource.algorithm.impl.** { *; }
+# ViewModel (used with Hilt)
+-keep class * extends androidx.lifecycle.ViewModel { *; }
 
-# Keep connection models and callbacks
--keep class sangiorgi.wps.opensource.connection.models.** { *; }
--keep class sangiorgi.wps.opensource.connection.ConnectionUpdateCallback { *; }
+# Keep annotations (VERY IMPORTANT)
+-keepattributes *Annotation*
 
-# Keep domain models (Parcelable)
--keep class sangiorgi.wps.opensource.domain.models.** { *; }
+##################################################
+# 🔹 Jetpack Compose (SAFE + minimal)
+##################################################
+# Required for Compose runtime
+-keep class kotlin.Metadata { *; }
 
-# Keep data models
--keep class sangiorgi.wps.opensource.data.models.** { *; }
+# Suppress warnings
+-dontwarn androidx.compose.**
 
-# Keep BuildConfig
--keep class sangiorgi.wps.opensource.BuildConfig { *; }
-
-# Kotlin Coroutines
+##################################################
+# 🔹 Kotlin Coroutines
+##################################################
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
 
-# Compose
--dontwarn androidx.compose.**
-
-# Keep R8 from stripping interface information
--keep,allowobfuscation interface * {
-    @retrofit2.http.* <methods>;
+##################################################
+# 🔹 Kotlin Serialization
+##################################################
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
 }
 
-# Parcelable
+##################################################
+# 🔹 LibSu (Root library)
+##################################################
+-keep class com.topjohnwu.superuser.** { *; }
+-keep class com.topjohnwu.superuser.internal.** { *; }
+
+##################################################
+# 🔹 WPS Connection Library
+##################################################
+-keep class com.github.fulvius31.** { *; }
+
+##################################################
+# 🔹 Your App Logic (reflection-heavy)
+##################################################
+# Algorithms
+-keep class sangiorgi.wps.opensource.algorithm.** { *; }
+-keep class sangiorgi.wps.opensource.algorithm.strategy.** { *; }
+-keep class sangiorgi.wps.opensource.algorithm.impl.** { *; }
+
+# Connection + callbacks
+-keep class sangiorgi.wps.opensource.connection.models.** { *; }
+-keep class sangiorgi.wps.opensource.connection.ConnectionUpdateCallback { *; }
+
+# Domain models
+-keep class sangiorgi.wps.opensource.domain.models.** { *; }
+
+# Data models
+-keep class sangiorgi.wps.opensource.data.models.** { *; }
+
+##################################################
+# 🔹 Android Components
+##################################################
+-keep class * extends android.app.Application { *; }
+-keep class * extends android.app.Activity { *; }
+-keep class * extends android.app.Service { *; }
+
+##################################################
+# 🔹 BuildConfig
+##################################################
+-keep class sangiorgi.wps.opensource.BuildConfig { *; }
+
+##################################################
+# 🔹 Parcelable
+##################################################
 -keepclassmembers class * implements android.os.Parcelable {
     public static final ** CREATOR;
 }
 
-# Enums
+##################################################
+# 🔹 Enums
+##################################################
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+##################################################
+# 🔹 Commons Lang
+##################################################
+-keep class org.apache.commons.lang3.** { *; }
+
+##################################################
+# 🔹 Warnings cleanup
+##################################################
+-dontwarn kotlinx.coroutines.**
+-dontwarn dagger.hilt.**
+-dontwarn org.apache.commons.lang3.**
+-dontwarn java.lang.invoke.**
