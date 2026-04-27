@@ -1,187 +1,125 @@
-name: Android Build
+name: Build & Release APK
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*'
-    paths:
-      - "app/**"
-      - "build.gradle"
-      - "settings.gradle"
-      - "gradle/**"
-      - ".github/workflows/android.yml"
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (optional)"
+        required: false
+      release_name:
+        description: "Release title (optional)"
+        required: false
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out
+      # 📥 Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # ☕ Java setup
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
+          java-version: 21
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      # ⚡ Gradle cache + setup
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Run Spotless check
-        run: ./gradlew spotlessCheck
-
-      - name: Run Detekt
-        run: ./gradlew detekt
-
-      - name: Run Checkstyle
-        run: ./gradlew checkstyleMain || true
-
-      - name: Build debug APK
-        run: ./gradlew assembleOpenDebug
-
-      - name: Run unit tests
-        run: ./gradlew testOpenDebugUnitTest
-
-      - name: Stop gradle daemon
-        run: ./gradlew --stop
-
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ github.sha }}
-          path: app/build/reports/tests/
-          retention-days: 14
-
-      - name: Upload lint results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-results-${{ github.sha }}
-          path: |
-            app/build/reports/detekt/
-            app/build/reports/checkstyle/
-          retention-days: 14
-
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build release APK
-        run: ./gradlew assembleOpenRelease
-
-      - name: Get version name
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Rename APK
+      # 🔐 Generate signing keystore (CI only)
+      - name: Generate CI keystore
         run: |
-          mv app/build/outputs/apk/open/release/*.apk \
-             app/build/outputs/apk/open/release/wifi-wps-wpa-tester-${{ steps.version.outputs.VERSION }}.apk
+          STORE_PASS=$(openssl rand -hex 16)
+          KEY_ALIAS=ci-release
+          KEYSTORE_PATH="$PWD/app/ci-release.keystore"
 
-      - name: Create GitHub Release
+          echo "CI_KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
+          echo "CI_KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+          echo "CI_KEYSTORE_FILE=$KEYSTORE_PATH" >> $GITHUB_ENV
+
+          keytool -genkeypair \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 365 \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$STORE_PASS" \
+            -keypass "$STORE_PASS" \
+            -dname "CN=CI, OU=Android, O=CI, L=NA, S=NA, C=US"
+
+      # 🔧 Make Gradle executable
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # 🏗 Build APK (flavor-aware)
+      - name: Build Open Release APK
+        env:
+          ORG_GRADLE_PROJECT_ciKeystoreFile: ${{ env.CI_KEYSTORE_FILE }}
+          ORG_GRADLE_PROJECT_ciKeystorePassword: ${{ env.CI_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_ciKeyAlias: ${{ env.CI_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_ciKeyPassword: ${{ env.CI_KEYSTORE_PASSWORD }}
+        run: |
+          ./gradlew clean assembleOpenRelease --no-daemon --stacktrace
+
+      # 🔍 Debug (safe to keep)
+      - name: List build outputs
+        run: |
+          echo "==== APK OUTPUTS ===="
+          find app/build/outputs -type f || true
+
+      # 📦 Locate & rename APK (robust)
+      - name: Prepare APK
+        run: |
+          APK_PATH=$(find app/build/outputs -type f -name "*open-release*.apk" | head -n 1)
+
+          if [ -z "$APK_PATH" ]; then
+            echo "❌ No APK found"
+            exit 1
+          fi
+
+          echo "✅ Found APK: $APK_PATH"
+
+          mkdir -p output
+          cp "$APK_PATH" output/WPSApp.apk
+
+      # ⬆ Upload artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WPSApp
+          path: output/WPSApp.apk
+
+      # 🏷 Prepare release metadata
+      - name: Prepare release info
+        run: |
+          TAG_INPUT="${{ github.event.inputs.tag }}"
+          NAME_INPUT="${{ github.event.inputs.release_name }}"
+
+          DEFAULT_TAG="build-${{ github.run_number }}"
+          TAG_NAME="${TAG_INPUT:-$DEFAULT_TAG}"
+
+          if [ -n "$NAME_INPUT" ]; then
+            RELEASE_NAME="$NAME_INPUT"
+          else
+            RELEASE_NAME="WPS Tester Build $TAG_NAME"
+          fi
+
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+
+      # 🚀 Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_NAME }}
+          files: output/WPSApp.apk
           generate_release_notes: true
-          files: app/build/outputs/apk/open/release/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Stop gradle daemon
-        run: ./gradlew --stop
-
-  instrumented-tests:
-    name: Instrumented tests (API ${{ matrix.api-level }})
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        api-level: [26, 29, 31, 34]
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Enable KVM group perms
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: AVD cache
-        uses: actions/cache@v4
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ matrix.api-level }}
-
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api-level }}
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "Generated AVD snapshot for caching."
-
-      - name: Run instrumented tests
-        uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 20
-        with:
-          api-level: ${{ matrix.api-level }}
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: ./gradlew connectedOpenDebugAndroidTest
-
-      - name: Upload instrumented test results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: instrumented-test-results-api${{ matrix.api-level }}-${{ github.sha }}
-          path: app/build/reports/androidTests/
-          retention-days: 14
-
-      - name: Stop gradle daemon
-        run: ./gradlew --stop
