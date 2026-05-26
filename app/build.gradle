@@ -50,6 +50,12 @@ android {
         compose true
         buildConfig true
     }
+    packaging {
+        jniLibs {
+            // WpsConnectionLibrary executes bundled helper binaries from the app's nativeLibDir.
+            useLegacyPackaging = true
+        }
+    }
     flavorDimensions += "version"
     productFlavors {
         open {

@@ -14,12 +14,12 @@ kotlinxCoroutinesTest = "1.11.0"
 kotlinxSerializationJson = "1.11.0"
 lifecycleRuntimeCompose = "2.10.0"
 lifecycleRuntimeKtx = "2.10.0"
-activityCompose = "1.12.2"
-composeBom = "2026.01.00"
+activityCompose = "1.13.0"
+composeBom = "2026.05.01"
 materialIconsExtended = "1.7.8"
 mockitoCore = "5.21.0"
 mockitoKotlin = "6.2.1"
-navigationCompose = "2.9.6"
+navigationCompose = "2.9.8"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
