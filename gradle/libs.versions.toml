@@ -17,8 +17,8 @@ lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.13.0"
 composeBom = "2026.05.01"
 materialIconsExtended = "1.7.8"
-mockitoCore = "5.21.0"
-mockitoKotlin = "6.2.1"
+mockitoCore = "5.23.0"
+mockitoKotlin = "6.3.0"
 navigationCompose = "2.9.8"
 
 [libraries]
