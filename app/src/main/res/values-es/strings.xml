@@ -90,9 +90,15 @@
     <string name="testing_pin">Probando PIN: %s</string>
     <string name="connected_successfully">¡Conectado con éxito!</string>
     <string name="connection_failed">Conexión Fallida</string>
+    <string name="connection_cancelled">Conexión Cancelada</string>
     <string name="initializing">Inicializando…</string>
     <string name="pin_found">¡PIN Encontrado!</string>
     <string name="password_format">Contraseña: %s</string>
+    <string name="action_copy">Copiar</string>
+    <string name="action_share">Compartir</string>
+    <string name="result_copied">Copiado al portapapeles</string>
+    <string name="share_chooser_title">Compartir resultado WPS</string>
+    <string name="share_result_format">Red: %1$s\nPIN WPS: %2$s</string>
     <string name="method_standard_wps_attack">Ataque WPS Estándar</string>
     <string name="method_testing_pins">Probando %d PINs</string>
     <string name="method_pixie_dust_attack">Ataque Pixie Dust</string>
@@ -121,9 +127,13 @@
     <string name="permission_change_wifi_state">Cambiar Estado WiFi</string>
     <string name="permission_network_state">Estado de Red</string>
     <string name="permission_change_network_state">Cambiar Estado de Red</string>
-    <string name="permission_read_storage">Leer Almacenamiento</string>
-    <string name="permission_write_storage">Escribir Almacenamiento</string>
     <string name="permission_internet_access">Acceso a Internet</string>
+
+    <!-- Permission Toasts -->
+    <string name="toast_permissions_granted">¡Permisos concedidos!</string>
+    <string name="toast_enable_location_services">Habilita los servicios de ubicación para escanear WiFi</string>
+    <string name="toast_grant_permissions_from_settings">Concede los permisos desde los ajustes de la app</string>
+    <string name="toast_some_permissions_denied">Algunos permisos fueron denegados. El escaneo WiFi puede no funcionar correctamente.</string>
 
     <!-- PIN Selection Dialog -->
     <string name="select_pins_to_test">Seleccionar PINs a Probar</string>

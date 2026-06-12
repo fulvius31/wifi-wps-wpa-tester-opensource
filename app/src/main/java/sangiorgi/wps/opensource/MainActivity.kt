@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -79,9 +80,10 @@ fun MainScreen(rootChecker: RootChecker) {
 
     val navController = rememberNavController()
 
-    // State for selected network
-    var selectedNetwork by remember { mutableStateOf<WifiNetwork?>(null) }
-    var selectedMethod by remember { mutableStateOf<ConnectionMethod?>(null) }
+    // State for selected network. Use rememberSaveable so the selection survives configuration
+    // changes and process death; otherwise the ConnectionProgress screen renders blank on restore.
+    var selectedNetwork by rememberSaveable { mutableStateOf<WifiNetwork?>(null) }
+    var selectedMethod by rememberSaveable { mutableStateOf<ConnectionMethod?>(null) }
 
     // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -94,13 +96,17 @@ fun MainScreen(rootChecker: RootChecker) {
     LaunchedEffect(permissionState.event) {
         when (permissionState.event) {
             is PermissionViewModel.PermissionEvent.PermissionsGranted -> {
-                Toast.makeText(context, "Permissions granted!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.toast_permissions_granted),
+                    Toast.LENGTH_SHORT,
+                ).show()
                 permissionViewModel.consumeEvent()
             }
             is PermissionViewModel.PermissionEvent.LocationDisabled -> {
                 Toast.makeText(
                     context,
-                    "Please enable location services for WiFi scanning",
+                    context.getString(R.string.toast_enable_location_services),
                     Toast.LENGTH_LONG,
                 ).show()
                 context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
@@ -109,7 +115,7 @@ fun MainScreen(rootChecker: RootChecker) {
             is PermissionViewModel.PermissionEvent.PermanentlyDenied -> {
                 Toast.makeText(
                     context,
-                    "Please grant permissions from app settings",
+                    context.getString(R.string.toast_grant_permissions_from_settings),
                     Toast.LENGTH_LONG,
                 ).show()
                 permissionViewModel.consumeEvent()
@@ -117,7 +123,7 @@ fun MainScreen(rootChecker: RootChecker) {
             is PermissionViewModel.PermissionEvent.SomeDenied -> {
                 Toast.makeText(
                     context,
-                    "Some permissions were denied. WiFi scanning may not work properly.",
+                    context.getString(R.string.toast_some_permissions_denied),
                     Toast.LENGTH_LONG,
                 ).show()
                 permissionViewModel.consumeEvent()
@@ -207,7 +213,11 @@ fun MainScreen(rootChecker: RootChecker) {
                                     connectionMethod = method,
                                     connectionState = connectionState,
                                     onCancel = {
+                                        // Stop the running attempt but stay on screen so the
+                                        // user sees the cancelled result (Close/Retry).
                                         connectionViewModel.cancelConnection()
+                                    },
+                                    onClose = {
                                         navController.popBackStack()
                                     },
                                     onRetry = {

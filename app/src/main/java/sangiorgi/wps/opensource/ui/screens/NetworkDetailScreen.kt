@@ -1,5 +1,6 @@
 package sangiorgi.wps.opensource.ui.screens
 
+import android.os.Parcelable
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.parcelize.Parcelize
 import sangiorgi.wps.opensource.R
 import sangiorgi.wps.opensource.domain.models.*
 import sangiorgi.wps.opensource.utils.RootChecker
@@ -540,12 +542,18 @@ private fun ConnectionMethodCard(
     }
 }
 
-sealed class ConnectionMethod {
-    object STANDARD : ConnectionMethod()
-    object PIXIE_DUST : ConnectionMethod()
-    object BELKIN : ConnectionMethod()
-    object BRUTE_FORCE : ConnectionMethod()
-    object CUSTOM_PIN : ConnectionMethod()
-    data class STANDARD_WITH_PINS(val pins: List<String>) : ConnectionMethod()
-    data class CUSTOM_PIN_WITH_VALUE(val pin: String) : ConnectionMethod()
+sealed class ConnectionMethod : Parcelable {
+    @Parcelize object STANDARD : ConnectionMethod()
+
+    @Parcelize object PIXIE_DUST : ConnectionMethod()
+
+    @Parcelize object BELKIN : ConnectionMethod()
+
+    @Parcelize object BRUTE_FORCE : ConnectionMethod()
+
+    @Parcelize object CUSTOM_PIN : ConnectionMethod()
+
+    @Parcelize data class STANDARD_WITH_PINS(val pins: List<String>) : ConnectionMethod()
+
+    @Parcelize data class CUSTOM_PIN_WITH_VALUE(val pin: String) : ConnectionMethod()
 }

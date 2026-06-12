@@ -90,9 +90,15 @@
     <string name="testing_pin">Test PIN: %s</string>
     <string name="connected_successfully">Connesso con successo!</string>
     <string name="connection_failed">Connessione Fallita</string>
+    <string name="connection_cancelled">Connessione Annullata</string>
     <string name="initializing">Inizializzazione…</string>
     <string name="pin_found">PIN Trovato!</string>
     <string name="password_format">Password: %s</string>
+    <string name="action_copy">Copia</string>
+    <string name="action_share">Condividi</string>
+    <string name="result_copied">Copiato negli appunti</string>
+    <string name="share_chooser_title">Condividi risultato WPS</string>
+    <string name="share_result_format">Rete: %1$s\nPIN WPS: %2$s</string>
     <string name="method_standard_wps_attack">Attacco WPS Standard</string>
     <string name="method_testing_pins">Test di %d PIN</string>
     <string name="method_pixie_dust_attack">Attacco Pixie Dust</string>
@@ -121,9 +127,13 @@
     <string name="permission_change_wifi_state">Modifica Stato WiFi</string>
     <string name="permission_network_state">Stato Rete</string>
     <string name="permission_change_network_state">Modifica Stato Rete</string>
-    <string name="permission_read_storage">Lettura Memoria</string>
-    <string name="permission_write_storage">Scrittura Memoria</string>
     <string name="permission_internet_access">Accesso Internet</string>
+
+    <!-- Permission Toasts -->
+    <string name="toast_permissions_granted">Permessi concessi!</string>
+    <string name="toast_enable_location_services">Abilita i servizi di localizzazione per la scansione WiFi</string>
+    <string name="toast_grant_permissions_from_settings">Concedi i permessi dalle impostazioni dell\'app</string>
+    <string name="toast_some_permissions_denied">Alcuni permessi sono stati negati. La scansione WiFi potrebbe non funzionare correttamente.</string>
 
     <!-- PIN Selection Dialog -->
     <string name="select_pins_to_test">Seleziona PIN da Testare</string>
