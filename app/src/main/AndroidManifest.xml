@@ -28,14 +28,7 @@
     
     <!-- Vibration for feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    
-    <!-- Storage permissions for logs/sessions -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28"
-        tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    
+
     <!-- Declare features -->
     <uses-feature android:name="android.hardware.wifi" android:required="true" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
@@ -44,7 +37,7 @@
 
     <application
         android:name=".WpsApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"

@@ -61,21 +61,8 @@ class PermissionManager(private val context: Context) {
             }
         }
 
-        // Storage permissions for logs (optional)
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Use scoped storage, no permission needed
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Scoped storage, but might need for legacy
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            else -> {
-                // minSdk is 24 (>= M), so permissions always need to be requested at runtime
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
+        // Note: no external-storage permissions are requested. The app keeps all data
+        // (databases, helper binaries, sessions) in its private internal storage.
 
         return permissions
     }
