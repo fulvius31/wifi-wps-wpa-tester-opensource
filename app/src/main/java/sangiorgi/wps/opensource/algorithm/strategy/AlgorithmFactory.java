@@ -4,7 +4,17 @@ import android.content.Context;
 import java.util.HashMap;
 import java.util.Map;
 import sangiorgi.wps.opensource.algorithm.AlgorithmType;
-import sangiorgi.wps.opensource.algorithm.strategy.impl.*;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.AiroconRealtekAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.ArcadyanAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.ArrisAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.AsusAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.BelkinAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.BitBasedAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.DlinkAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.FteAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.OrangeAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.PinAlgorithm;
+import sangiorgi.wps.opensource.algorithm.strategy.impl.TrendNetAlgorithm;
 
 /**
  * Factory class for creating WPS algorithm instances Uses lazy initialization and caching for

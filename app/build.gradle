@@ -27,11 +27,35 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing is configured only when a keystore is supplied via env vars (CI secrets) or
+    // gradle properties. Without it, release builds stay unsigned so local/CI builds without the
+    // secret still succeed instead of shipping an unsigned APK as if it were release-ready.
+    def releaseStoreFile = System.getenv("KEYSTORE_FILE") ?: project.findProperty("KEYSTORE_FILE")
+    def hasReleaseSigning = releaseStoreFile != null
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS") ?: project.findProperty("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            // Generate JaCoCo coverage for unit tests (createOpenDebugUnitTestCoverageReport).
+            enableUnitTestCoverage true
+        }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     compileOptions {
@@ -49,6 +73,12 @@ android {
     buildFeatures {
         compose true
         buildConfig true
+    }
+    testOptions {
+        unitTests {
+            // Let android.util.Log calls return defaults instead of throwing in JVM unit tests.
+            returnDefaultValues = true
+        }
     }
     packaging {
         jniLibs {

@@ -36,6 +36,12 @@ public enum AlgorithmType {
     return displayName;
   }
 
+  /**
+   * Returns the algorithm type matching the given numeric code.
+   *
+   * @param code the algorithm code
+   * @return the matching type, or null if no type has that code
+   */
   public static AlgorithmType fromCode(int code) {
     for (AlgorithmType type : values()) {
       if (type.code == code) {

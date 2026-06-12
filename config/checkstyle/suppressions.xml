@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!--
+      The WPS PIN-generation algorithms are dense numeric code: bit masks, shifts, modulo
+      constants and vendor-specific seeds are intrinsic to each algorithm, so MagicNumber is
+      noise here rather than a real smell. SummaryJavadoc's trailing-period requirement is also
+      low value for these short class summaries. Every other Checkstyle rule still applies to
+      this package.
+    -->
+    <suppress checks="MagicNumber" files="[\\/]algorithm[\\/].*\.java$"/>
+    <suppress checks="SummaryJavadoc" files="[\\/]algorithm[\\/].*\.java$"/>
+</suppressions>

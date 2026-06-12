@@ -63,9 +63,30 @@ checkstyle {
     maxWarnings = 0
 }
 
+// Checkstyle 10.12.7 transitively pulls both guava and the legacy google-collections, which
+// declare the same capability and make Gradle's checkstyle classpath unresolvable. Prefer guava.
+configurations.named('checkstyle') {
+    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
+        selectHighestVersion()
+    }
+}
+
 tasks.withType(Checkstyle).configureEach {
     reports {
         xml.required = false
         html.required = true
     }
+}
+
+// The Gradle checkstyle plugin only auto-creates checkstyleMain/Test for projects with Java
+// source sets. This is an Android module, so register the task explicitly against the Java
+// sources; without this the CI `checkstyleMain` invocation silently found no task.
+tasks.register('checkstyleMain', Checkstyle) {
+    description = 'Run Checkstyle over the app Java sources.'
+    group = 'verification'
+    source = fileTree("${rootDir}/app/src/main/java") {
+        include '**/*.java'
+    }
+    classpath = files()
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
 }
