@@ -24,10 +24,19 @@ class VendorDatabaseHelper @Inject constructor(
         private const val DATABASE_FILE = "vendor.db"
     }
 
+    @Volatile
     private var database: SQLiteDatabase? = null
     private val databasePath: String = File(context.filesDir, DATABASE_FILE).absolutePath
 
-    init {
+    /**
+     * Lazily extract the bundled DB and open it on first use. Synchronized and idempotent so the
+     * disk I/O happens off the main thread (from the suspend query) and only once even under
+     * concurrent first access. Called from getVendorByMac, never from init, to avoid blocking the
+     * thread that constructs this singleton.
+     */
+    @Synchronized
+    private fun ensureDatabaseOpen() {
+        if (database?.isOpen == true) return
         extractDatabaseIfNeeded()
         openDatabase()
     }
@@ -62,9 +71,7 @@ class VendorDatabaseHelper @Inject constructor(
     }
 
     suspend fun getVendorByMac(macAddress: String): String = withContext(Dispatchers.IO) {
-        if (database == null || !database!!.isOpen) {
-            openDatabase()
-        }
+        ensureDatabaseOpen()
 
         val normalizedMac = normalizeMacAddress(macAddress)
         val macPrefix = extractMacPrefix(normalizedMac)

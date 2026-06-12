@@ -1,9 +1,8 @@
 package sangiorgi.wps.opensource.algorithm
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import sangiorgi.wps.opensource.algorithm.strategy.AlgorithmFactory
 import sangiorgi.wps.opensource.data.database.PinDatabaseHelper
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,10 +16,10 @@ import javax.inject.Singleton
  */
 @Singleton
 class PinGeneratorService @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+    private val algorithmFactory: AlgorithmFactory,
     private val pinDatabaseHelper: PinDatabaseHelper,
 ) {
-    private val algorithm: Algorithm by lazy { Algorithm(context) }
+    private val algorithm: Algorithm by lazy { Algorithm.from(algorithmFactory) }
 
     /**
      * Data class representing a PIN with its source.

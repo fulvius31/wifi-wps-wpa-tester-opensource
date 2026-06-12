@@ -30,14 +30,19 @@ class PinDatabaseHelper @Inject constructor(
         private const val MAX_PINS_PER_MAC = 8
     }
 
+    @Volatile
     private var database: SQLiteDatabase? = null
     private val databasePath: String = WpaToolsPaths(context).getPinDatabasePath()
 
-    init {
-        openDatabase()
-    }
-
-    private fun openDatabase() {
+    /**
+     * Lazily open the database on first use. Synchronized and idempotent so the disk I/O happens
+     * off the main thread (from the suspend query) and only once even under concurrent first
+     * access. Called from getPinsByMac, never from init, to avoid blocking the thread that
+     * constructs this singleton.
+     */
+    @Synchronized
+    private fun ensureDatabaseOpen() {
+        if (database?.isOpen == true) return
         try {
             database = SQLiteDatabase.openDatabase(
                 databasePath,
@@ -58,9 +63,7 @@ class PinDatabaseHelper @Inject constructor(
      * @return List of known static PINs for this MAC prefix, empty if none found
      */
     suspend fun getPinsByMac(macAddress: String): List<String> = withContext(Dispatchers.IO) {
-        if (database == null || database?.isOpen != true) {
-            openDatabase()
-        }
+        ensureDatabaseOpen()
 
         val normalizedMac = normalizeMacAddress(macAddress)
         if (normalizedMac.length < 6) {
