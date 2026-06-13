@@ -91,6 +91,8 @@
     <string name="connected_successfully">¡Conectado con éxito!</string>
     <string name="connection_failed">Conexión Fallida</string>
     <string name="connection_cancelled">Conexión Cancelada</string>
+    <string name="wifi_must_be_disabled">El WiFi está habilitado. El wpa_supplicant del sistema está usando wlan0 — desactiva el WiFi para liberar la interfaz y vuelve a intentarlo.</string>
+    <string name="open_wifi_settings">Abrir Ajustes de WiFi</string>
     <string name="initializing">Inicializando…</string>
     <string name="pin_found">¡PIN Encontrado!</string>
     <string name="password_format">Contraseña: %s</string>

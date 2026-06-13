@@ -91,6 +91,8 @@
     <string name="connected_successfully">Connected Successfully!</string>
     <string name="connection_failed">Connection Failed</string>
     <string name="connection_cancelled">Connection Cancelled</string>
+    <string name="wifi_must_be_disabled">WiFi is enabled. The system wpa_supplicant is using wlan0 — disable WiFi to free the interface, then retry.</string>
+    <string name="open_wifi_settings">Open WiFi Settings</string>
     <string name="initializing">Initializing…</string>
     <string name="pin_found">PIN Found!</string>
     <string name="password_format">Password: %s</string>

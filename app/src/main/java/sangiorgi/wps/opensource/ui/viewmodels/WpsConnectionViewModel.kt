@@ -1,5 +1,6 @@
 package sangiorgi.wps.opensource.ui.viewmodels
 
+import android.net.wifi.WifiManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class WpsConnectionViewModel @Inject constructor(
     private val wpsManager: WpsConnectionManager,
+    private val wifiManager: WifiManager,
     @ApplicationScope private val applicationScope: CoroutineScope,
 ) : ViewModel(), ConnectionUpdateCallback {
 
@@ -48,6 +50,16 @@ class WpsConnectionViewModel @Inject constructor(
     fun startConnection(network: WifiNetwork, method: ConnectionMethod) {
         currentNetwork = network
         currentMethod = method
+
+        // The bundled wpa_supplicant binds to wlan0, but Android's own wpa_supplicant already
+        // holds that interface while WiFi is enabled. Refuse to start until the user turns WiFi
+        // off (apps can't disable it programmatically on Android 10+).
+        if (wifiManager.isWifiEnabled) {
+            _connectionState.value = ConnectionState(status = ConnectionStatus.WIFI_ENABLED)
+            addLog("WiFi is enabled — the system wpa_supplicant is using wlan0.", LogType.WARNING)
+            addLog("Disable WiFi to free the interface, then retry.", LogType.WARNING)
+            return
+        }
 
         // Reset state
         _connectionState.value = ConnectionState(

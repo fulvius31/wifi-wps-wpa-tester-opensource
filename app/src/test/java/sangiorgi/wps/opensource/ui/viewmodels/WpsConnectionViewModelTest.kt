@@ -1,5 +1,6 @@
 package sangiorgi.wps.opensource.ui.viewmodels
 
+import android.net.wifi.WifiManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,6 +12,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.whenever
 import sangiorgi.wps.lib.WpsConnectionManager
 import sangiorgi.wps.lib.models.NetworkToTest
 import sangiorgi.wps.opensource.domain.models.WifiNetwork
@@ -22,6 +25,7 @@ class WpsConnectionViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var wpsManager: WpsConnectionManager
+    private lateinit var wifiManager: WifiManager
     private lateinit var viewModel: WpsConnectionViewModel
 
     private val network = WifiNetwork(
@@ -36,7 +40,10 @@ class WpsConnectionViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         wpsManager = mock()
-        viewModel = WpsConnectionViewModel(wpsManager, CoroutineScope(testDispatcher))
+        wifiManager = mock()
+        // Default: WiFi off, so connection attempts proceed past the pre-check.
+        whenever(wifiManager.isWifiEnabled).thenReturn(false)
+        viewModel = WpsConnectionViewModel(wpsManager, wifiManager, CoroutineScope(testDispatcher))
     }
 
     @After
@@ -111,5 +118,16 @@ class WpsConnectionViewModelTest {
         viewModel.updateCount(5)
         viewModel.updateCount(3)
         assertEquals(8, viewModel.connectionState.value.currentPinIndex)
+    }
+
+    @Test
+    fun startConnection_blocksWhenWifiEnabled() {
+        whenever(wifiManager.isWifiEnabled).thenReturn(true)
+
+        viewModel.startConnection(network, ConnectionMethod.BRUTE_FORCE)
+
+        assertEquals(ConnectionStatus.WIFI_ENABLED, viewModel.connectionState.value.status)
+        // The native attempt must not start while WiFi holds wlan0.
+        verifyNoInteractions(wpsManager)
     }
 }
