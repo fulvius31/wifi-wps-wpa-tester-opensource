@@ -3,7 +3,9 @@ package sangiorgi.wps.opensource.algorithm;
 import java.util.Locale;
 
 /** Utility class for WPS PIN checksum calculations */
-public class ChecksumCalculator {
+public final class ChecksumCalculator {
+
+  private ChecksumCalculator() {}
 
   /**
    * Calculates WPS PIN checksum using the standard algorithm

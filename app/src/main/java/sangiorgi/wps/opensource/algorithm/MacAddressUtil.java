@@ -3,7 +3,9 @@ package sangiorgi.wps.opensource.algorithm;
 import java.util.Locale;
 
 /** Utility class for MAC address operations */
-public class MacAddressUtil {
+public final class MacAddressUtil {
+
+  private MacAddressUtil() {}
 
   private static final String DEFAULT_PIN = "12345670";
 

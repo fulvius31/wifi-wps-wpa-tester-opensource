@@ -52,7 +52,9 @@ public class ArrisAlgorithm extends BaseWpsAlgorithm {
       if (counter == 0) {
         if (tmp[i] < 3) {
           long sum = 0;
-          for (long b : tmp) sum += b;
+          for (long b : tmp) {
+            sum += b;
+          }
           tmp[i] = (sum - tmp[i]) & 0xff;
           tmp[i] = (tmp[i] % 28) + 3;
         }
@@ -75,7 +77,9 @@ public class ArrisAlgorithm extends BaseWpsAlgorithm {
   }
 
   private static long fibonacci(long n) {
-    if (n < 0) return 1;
+    if (n < 0) {
+      return 1;
+    }
     if (n < FIB_CACHE.length) {
       return FIB_CACHE[(int) n];
     }
