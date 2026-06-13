@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -346,9 +345,6 @@ private fun getPermissionIcon(permission: String): ImageVector {
         Manifest.permission.ACCESS_WIFI_STATE,
         Manifest.permission.CHANGE_WIFI_STATE,
         -> Icons.Default.Wifi
-        Manifest.permission.READ_EXTERNAL_STORAGE,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-        -> Icons.Default.Storage
         else -> Icons.Default.Security
     }
 }
@@ -364,8 +360,6 @@ private fun getPermissionName(permission: String): String {
         Manifest.permission.CHANGE_WIFI_STATE -> stringResource(R.string.permission_change_wifi_state)
         Manifest.permission.ACCESS_NETWORK_STATE -> stringResource(R.string.permission_network_state)
         Manifest.permission.CHANGE_NETWORK_STATE -> stringResource(R.string.permission_change_network_state)
-        Manifest.permission.READ_EXTERNAL_STORAGE -> stringResource(R.string.permission_read_storage)
-        Manifest.permission.WRITE_EXTERNAL_STORAGE -> stringResource(R.string.permission_write_storage)
         Manifest.permission.INTERNET -> stringResource(R.string.permission_internet_access)
         else -> permission.substringAfterLast(".")
     }
