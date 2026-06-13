@@ -35,34 +35,38 @@ class WifiScannerViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    init {
+        // Seed the WiFi state from reality so the UI doesn't show a stale warning before the
+        // first scan.
+        updateWifiStatus()
+    }
+
     fun startScan() {
         viewModelScope.launch {
-            // First check if WiFi is enabled
-            if (!wifiScannerManager.isWifiEnabled()) {
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        error = application.getString(R.string.wifi_must_be_enabled),
-                        isWifiEnabled = false,
-                    )
-                }
+            // Always reflect the real WiFi state, so a stale "WiFi disabled" warning clears once
+            // the user re-enables WiFi from system settings (previously this only ever set the
+            // flag to false and never back to true).
+            val wifiEnabled = wifiScannerManager.isWifiEnabled()
+            _uiState.update { it.copy(isWifiEnabled = wifiEnabled) }
+
+            if (!wifiEnabled) {
+                _uiState.update { it.copy(error = application.getString(R.string.wifi_must_be_enabled)) }
                 return@launch
             }
 
             _isScanning.value = true
-            val success = wifiScannerManager.startScan()
+            val started = wifiScannerManager.startScan()
 
-            if (!success) {
-                // If WiFi is enabled but scan failed, it's likely a permission issue
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        error = application.getString(R.string.error_location_permission_required),
-                    )
+            // WifiManager.startScan() is deprecated and rate-limited; a false return usually means
+            // the scan was throttled, NOT that a permission is missing. Only surface the permission
+            // error when location permission is genuinely absent.
+            _uiState.update { currentState ->
+                val error = if (!started && !wifiScannerManager.hasLocationPermission()) {
+                    application.getString(R.string.error_location_permission_required)
+                } else {
+                    null
                 }
-            } else {
-                // Clear any previous errors on successful scan
-                _uiState.update { currentState ->
-                    currentState.copy(error = null)
-                }
+                currentState.copy(error = error)
             }
 
             // Keep scanning indicator for 2 seconds minimum

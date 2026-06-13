@@ -197,7 +197,7 @@ class WifiScannerManager @Inject constructor(
      * On Android 13+, NEARBY_WIFI_DEVICES can be used instead of location
      * Note: minSdk is 24 (>= M), so runtime permissions are always required
      */
-    private fun hasLocationPermission(): Boolean {
+    fun hasLocationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // On Android 13+, either NEARBY_WIFI_DEVICES or location permission works
             ActivityCompat.checkSelfPermission(

@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +22,8 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +51,7 @@ fun ConnectionProgressScreen(
     onDone: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     LaunchedEffect(connectionState.logs) {
         if (connectionState.logs.isNotEmpty()) {
@@ -182,6 +188,24 @@ fun ConnectionProgressScreen(
                             Text(stringResource(R.string.retry))
                         }
                     }
+                    ConnectionStatus.WIFI_ENABLED -> {
+                        OutlinedButton(
+                            onClick = { openWifiSettings(context) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.Wifi, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.open_wifi_settings))
+                        }
+                        Button(
+                            onClick = onRetry,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.retry))
+                        }
+                    }
                     else -> {}
                 }
             }
@@ -202,7 +226,7 @@ private fun ConnectionStatusCard(
         colors = CardDefaults.cardColors(
             containerColor = when (connectionState.status) {
                 ConnectionStatus.SUCCESS -> MaterialTheme.colorScheme.primaryContainer
-                ConnectionStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
+                ConnectionStatus.FAILED, ConnectionStatus.WIFI_ENABLED -> MaterialTheme.colorScheme.errorContainer
                 else -> MaterialTheme.colorScheme.surfaceVariant
             },
         ),
@@ -249,6 +273,14 @@ private fun ConnectionStatusCard(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    ConnectionStatus.WIFI_ENABLED -> {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     else -> {}
                 }
             }
@@ -278,6 +310,7 @@ private fun ConnectionStatusCard(
                     ConnectionStatus.FAILED ->
                         connectionState.errorMessage ?: stringResource(R.string.connection_failed)
                     ConnectionStatus.CANCELLED -> stringResource(R.string.connection_cancelled)
+                    ConnectionStatus.WIFI_ENABLED -> stringResource(R.string.wifi_must_be_disabled)
                     else -> stringResource(R.string.initializing)
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -410,6 +443,23 @@ private fun ResultActions(ssid: String, pin: String, password: String?) {
     }
 }
 
+private fun openWifiSettings(context: Context) {
+    // On Android 10+ the slide-up WiFi panel lets the user toggle WiFi off without leaving the
+    // app; older versions fall back to the full WiFi settings screen.
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        Intent(Settings.Panel.ACTION_WIFI)
+    } else {
+        Intent(Settings.ACTION_WIFI_SETTINGS)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (e: android.content.ActivityNotFoundException) {
+        // Extremely rare (a ROM with no WiFi settings activity); fall back to general settings.
+        Log.w("ConnectionProgressScreen", "No WiFi settings activity", e)
+        runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) }
+    }
+}
+
 private fun buildResultText(context: Context, ssid: String, pin: String, password: String?): String {
     return buildString {
         append(context.getString(R.string.share_result_format, ssid, pin))
@@ -437,6 +487,10 @@ enum class ConnectionStatus {
     SUCCESS,
     FAILED,
     CANCELLED,
+
+    // WiFi is on, so the system wpa_supplicant holds wlan0; the attempt can't start until the
+    // user disables WiFi.
+    WIFI_ENABLED,
 }
 
 data class ConnectionLog(
