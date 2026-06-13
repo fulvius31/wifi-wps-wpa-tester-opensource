@@ -3,6 +3,7 @@ package sangiorgi.wps.opensource.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -12,6 +13,7 @@ import sangiorgi.wps.lib.ConnectionUpdateCallback.TYPE_PIXIE_DUST_NOT_COMPATIBLE
 import sangiorgi.wps.lib.ConnectionUpdateCallback.TYPE_SELINUX
 import sangiorgi.wps.lib.WpsConnectionManager
 import sangiorgi.wps.lib.models.NetworkToTest
+import sangiorgi.wps.opensource.di.ApplicationScope
 import sangiorgi.wps.opensource.domain.models.WifiNetwork
 import sangiorgi.wps.opensource.ui.screens.*
 import java.text.SimpleDateFormat
@@ -21,6 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class WpsConnectionViewModel @Inject constructor(
     private val wpsManager: WpsConnectionManager,
+    @ApplicationScope private val applicationScope: CoroutineScope,
 ) : ViewModel(), ConnectionUpdateCallback {
 
     private val _connectionState = MutableStateFlow(ConnectionState())
@@ -28,6 +31,19 @@ class WpsConnectionViewModel @Inject constructor(
     private var currentNetwork: WifiNetwork? = null
     private var currentMethod: ConnectionMethod? = null
     private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
+    private companion object {
+        // WPS PIN brute-force search space: 10^4 (first half) + 10^3 (second half, last digit is a
+        // checksum). The PIN is validated in two independent halves, so it is not 10^8.
+        const val WPS_BRUTE_FORCE_SEARCH_SPACE = 11_000
+
+        // An 8-digit PIN preceded by the word "PIN" (word-boundary anchored so substrings like
+        // "spinning" don't match) and optional non-digit separators.
+        val LABELLED_PIN_REGEX = Regex("(?i)\\bpin\\D{0,8}(\\d{8})")
+
+        // Any standalone 8-digit token (fallback).
+        val STANDALONE_PIN_REGEX = Regex("\\b\\d{8}\\b")
+    }
 
     fun startConnection(network: WifiNetwork, method: ConnectionMethod) {
         currentNetwork = network
@@ -38,7 +54,7 @@ class WpsConnectionViewModel @Inject constructor(
             status = ConnectionStatus.CONNECTING,
             totalPins = when (method) {
                 is ConnectionMethod.STANDARD_WITH_PINS -> method.pins.size
-                is ConnectionMethod.BRUTE_FORCE -> 100000000 // All 8-digit PINs
+                is ConnectionMethod.BRUTE_FORCE -> WPS_BRUTE_FORCE_SEARCH_SPACE
                 else -> 1
             },
         )
@@ -48,7 +64,9 @@ class WpsConnectionViewModel @Inject constructor(
         val pins = when (method) {
             is ConnectionMethod.STANDARD_WITH_PINS -> method.pins.toTypedArray()
             is ConnectionMethod.CUSTOM_PIN_WITH_VALUE -> arrayOf(method.pin)
-            is ConnectionMethod.BELKIN -> generateBelkinPins(network.bssid)
+            // BELKIN/PIXIE_DUST/BRUTE_FORCE drive their own PIN generation inside the native
+            // WpsConnectionManager and ignore this array.
+            is ConnectionMethod.BELKIN -> arrayOf()
             is ConnectionMethod.PIXIE_DUST -> arrayOf()
             is ConnectionMethod.BRUTE_FORCE -> arrayOf()
             else -> getDefaultPins()
@@ -84,7 +102,7 @@ class WpsConnectionViewModel @Inject constructor(
 
     fun cancelConnection() {
         addLog("Cancelling connection...", LogType.WARNING)
-        _connectionState.update { it.copy(status = ConnectionStatus.FAILED) }
+        _connectionState.update { it.copy(status = ConnectionStatus.CANCELLED) }
 
         // Run cancel and cleanup on background thread to avoid ANR
         viewModelScope.launch(Dispatchers.IO) {
@@ -110,9 +128,12 @@ class WpsConnectionViewModel @Inject constructor(
     override fun updateMessage(message: String) {
         addLog(message, LogType.INFO)
 
-        // Parse PIN from message if present
-        val pinRegex = "\\b\\d{8}\\b".toRegex()
-        val pin = pinRegex.find(message)?.value
+        // Prefer an 8-digit token that is explicitly labelled as a PIN (e.g. "PIN: 12345670",
+        // "Testing PIN 12345670"), so unrelated 8-digit numbers in the message (counters,
+        // timestamps, MAC fragments) are not mistaken for the current PIN. Fall back to a bare
+        // 8-digit token only when no labelled one is present.
+        val pin = LABELLED_PIN_REGEX.find(message)?.groupValues?.get(1)
+            ?: STANDALONE_PIN_REGEX.find(message)?.value
 
         if (pin != null) {
             _connectionState.update { it.copy(currentPin = pin) }
@@ -228,25 +249,17 @@ class WpsConnectionViewModel @Inject constructor(
         )
     }
 
-    private fun generateBelkinPins(bssid: String): Array<String> {
-        // Simplified Belkin PIN generation
-        // In reality, this would use the actual Belkin algorithm
-        val mac = bssid.replace(":", "")
-        val seed = mac.substring(6).toIntOrNull(16) ?: 0
-        val pin = String.format(Locale.ROOT, "%08d", seed % 100000000)
-        return arrayOf(pin, "12345670", "00000000")
-    }
-
     override fun onCleared() {
         super.onCleared()
         // Only clean up the active operation — do NOT shutdown the shared singleton manager.
         // The manager's executor and thread pool are reused across ViewModel instances.
-        Thread {
+        // Use the application scope (not viewModelScope, which is already cancelled here).
+        applicationScope.launch {
             try {
                 wpsManager.cleanup()
             } catch (_: Exception) {
                 // Ignore errors during cleanup
             }
-        }.start()
+        }
     }
 }

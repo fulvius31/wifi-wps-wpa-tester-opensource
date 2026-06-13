@@ -1,21 +1,30 @@
 package sangiorgi.wps.opensource.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +41,7 @@ fun ConnectionProgressScreen(
     connectionMethod: ConnectionMethod,
     connectionState: ConnectionState,
     onCancel: () -> Unit,
+    onClose: () -> Unit,
     onRetry: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -49,10 +59,10 @@ fun ConnectionProgressScreen(
                 title = { Text(stringResource(R.string.wps_connection)) },
                 navigationIcon = {
                     IconButton(
-                        onClick = onCancel,
+                        onClick = onClose,
                         enabled = connectionState.status != ConnectionStatus.CONNECTING,
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -156,9 +166,9 @@ fun ConnectionProgressScreen(
                             Text(stringResource(R.string.done))
                         }
                     }
-                    ConnectionStatus.FAILED -> {
+                    ConnectionStatus.FAILED, ConnectionStatus.CANCELLED -> {
                         OutlinedButton(
-                            onClick = onCancel,
+                            onClick = onClose,
                             modifier = Modifier.weight(1f),
                         ) {
                             Text(stringResource(R.string.close))
@@ -231,6 +241,14 @@ private fun ConnectionStatusCard(
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
+                    ConnectionStatus.CANCELLED -> {
+                        Icon(
+                            imageVector = Icons.Default.Cancel,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     else -> {}
                 }
             }
@@ -259,6 +277,7 @@ private fun ConnectionStatusCard(
                     ConnectionStatus.SUCCESS -> stringResource(R.string.connected_successfully)
                     ConnectionStatus.FAILED ->
                         connectionState.errorMessage ?: stringResource(R.string.connection_failed)
+                    ConnectionStatus.CANCELLED -> stringResource(R.string.connection_cancelled)
                     else -> stringResource(R.string.initializing)
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -296,6 +315,13 @@ private fun ConnectionStatusCard(
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ResultActions(
+                            ssid = network.ssid,
+                            pin = connectionState.successPin,
+                            password = connectionState.password,
+                        )
                     }
                 }
             }
@@ -347,6 +373,53 @@ private fun getMethodDescription(method: ConnectionMethod): String {
     }
 }
 
+@Composable
+private fun ResultActions(ssid: String, pin: String, password: String?) {
+    val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.result_copied)
+    val chooserTitle = stringResource(R.string.share_chooser_title)
+    val resultText = buildResultText(context, ssid, pin, password)
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("WPS result", resultText))
+                Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+            },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary),
+        ) {
+            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(stringResource(R.string.action_copy))
+        }
+        TextButton(
+            onClick = {
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, resultText)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, chooserTitle))
+            },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary),
+        ) {
+            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(stringResource(R.string.action_share))
+        }
+    }
+}
+
+private fun buildResultText(context: Context, ssid: String, pin: String, password: String?): String {
+    return buildString {
+        append(context.getString(R.string.share_result_format, ssid, pin))
+        if (!password.isNullOrEmpty()) {
+            append("\n")
+            append(context.getString(R.string.password_format, password))
+        }
+    }
+}
+
 data class ConnectionState(
     val status: ConnectionStatus = ConnectionStatus.IDLE,
     val currentPin: String = "",
@@ -363,6 +436,7 @@ enum class ConnectionStatus {
     CONNECTING,
     SUCCESS,
     FAILED,
+    CANCELLED,
 }
 
 data class ConnectionLog(
