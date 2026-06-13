@@ -36,9 +36,15 @@ class WifiScannerViewModel @Inject constructor(
         )
 
     init {
-        // Seed the WiFi state from reality so the UI doesn't show a stale warning before the
-        // first scan.
+        // Seed the WiFi state immediately so the UI doesn't show a stale warning before the first
+        // scan, then keep it live so a WiFi toggle from system settings updates the UI even while
+        // the app sits idle.
         updateWifiStatus()
+        viewModelScope.launch {
+            wifiScannerManager.wifiEnabledState.collect { enabled ->
+                _uiState.update { it.copy(isWifiEnabled = enabled) }
+            }
+        }
     }
 
     fun startScan() {

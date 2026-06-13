@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import groovy.xml.XmlSlurper
 
 plugins {
     alias(libs.plugins.android.application)
@@ -146,4 +147,65 @@ dependencies {
     androidTestImplementation libs.androidx.ui.test.junit4
     debugImplementation libs.androidx.ui.tooling
     debugImplementation libs.androidx.ui.test.manifest
+}
+
+// --- Coverage gate -----------------------------------------------------------------------------
+// Enforce line coverage on the unit-tested core classes so their tests can't silently rot. We
+// gate specific well-tested classes (not whole packages, which mix in untested UI/IO classes).
+def coverageWatch = [
+    'sangiorgi/wps/opensource/algorithm/ChecksumCalculator',
+    'sangiorgi/wps/opensource/utils/IwScanResultParser',
+    'sangiorgi/wps/opensource/algorithm/strategy/impl/ArrisAlgorithm',
+    'sangiorgi/wps/opensource/algorithm/strategy/impl/BitBasedAlgorithm',
+    'sangiorgi/wps/opensource/algorithm/strategy/impl/AsusAlgorithm',
+    'sangiorgi/wps/opensource/algorithm/strategy/impl/TrendNetAlgorithm',
+    'sangiorgi/wps/opensource/algorithm/strategy/impl/DlinkAlgorithm',
+]
+def coverageMinRatio = 0.70
+
+tasks.register('verifyCoverage') {
+    description = 'Fail if line coverage of the unit-tested core classes drops below the threshold.'
+    group = 'verification'
+    dependsOn 'createOpenDebugUnitTestCoverageReport'
+    doLast {
+        // Path is the AGP unit-test coverage report convention (AGP 9.x). If a future AGP moves
+        // it, this fails loudly below rather than silently passing.
+        def reportFile = file("${layout.buildDirectory.get().asFile}/reports/coverage/test/open/debug/report.xml")
+        if (!reportFile.exists()) {
+            throw new GradleException("Coverage report not found at ${reportFile}")
+        }
+        // Strip the DOCTYPE so the parser never tries to fetch report.dtd (offline CI).
+        def cleaned = reportFile.getText('UTF-8').replaceFirst(/(?s)<!DOCTYPE[^>]*>/, '')
+        def report = new XmlSlurper(false, false).parseText(cleaned)
+
+        def ratios = [:]
+        report.'package'.each { pkg ->
+            pkg.'class'.each { cls ->
+                def name = cls.@name.text()
+                if (coverageWatch.contains(name)) {
+                    def line = cls.counter.find { it.@type.text() == 'LINE' }
+                    if (line) {
+                        int covered = (line.@covered.text() ?: '0') as int
+                        int missed = (line.@missed.text() ?: '0') as int
+                        int total = covered + missed
+                        ratios[name] = total == 0 ? 1.0d : covered / (double) total
+                    }
+                }
+            }
+        }
+
+        def failures = []
+        coverageWatch.each { name ->
+            def ratio = ratios[name]
+            if (ratio == null) {
+                failures << "${name}: no coverage data (class missing from report)"
+            } else if (ratio < coverageMinRatio) {
+                failures << sprintf('%s: %.0f%% (min %.0f%%)', name, ratio * 100, coverageMinRatio * 100)
+            }
+        }
+        if (!failures.isEmpty()) {
+            throw new GradleException("Coverage below threshold:\n  " + failures.join('\n  '))
+        }
+        logger.lifecycle("Coverage OK: ${coverageWatch.size()} core classes >= ${(coverageMinRatio * 100) as int}% line coverage")
+    }
 }

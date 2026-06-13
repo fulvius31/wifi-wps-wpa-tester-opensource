@@ -39,6 +39,11 @@ class WpsConnectionViewModel @Inject constructor(
         // checksum). The PIN is validated in two independent halves, so it is not 10^8.
         const val WPS_BRUTE_FORCE_SEARCH_SPACE = 11_000
 
+        // Delay (ms) the native library sleeps between brute-force PIN attempts — the 3rd arg of
+        // WpsConnectionManager.bruteForce(bssid, ssid, delayMs, callback). 1s throttles the router
+        // so it doesn't lock WPS as quickly.
+        const val BRUTE_FORCE_DELAY_MS = 1_000
+
         // An 8-digit PIN preceded by the word "PIN" (word-boundary anchored so substrings like
         // "spinning" don't match) and optional non-digit separators.
         val LABELLED_PIN_REGEX = Regex("(?i)\\bpin\\D{0,8}(\\d{8})")
@@ -102,7 +107,7 @@ class WpsConnectionViewModel @Inject constructor(
                 }
                 is ConnectionMethod.BRUTE_FORCE -> {
                     addLog("Starting brute force attack (this may take a long time)...", LogType.WARNING)
-                    wpsManager.bruteForce(bssid, ssid, 1000, this@WpsConnectionViewModel)
+                    wpsManager.bruteForce(bssid, ssid, BRUTE_FORCE_DELAY_MS, this@WpsConnectionViewModel)
                 }
                 else -> {
                     addLog("Testing ${pins.size} PINs...", LogType.INFO)
@@ -185,7 +190,7 @@ class WpsConnectionViewModel @Inject constructor(
     }
 
     override fun success(networkToTest: NetworkToTest, isRoot: Boolean) {
-        val successPin = _connectionState.value.currentPin
+        val successPin = resolveSuccessPin(networkToTest)
         addLog("SUCCESS! PIN found: $successPin", LogType.SUCCESS)
 
         if (isRoot) {
@@ -205,6 +210,18 @@ class WpsConnectionViewModel @Inject constructor(
                 password = password,
             )
         }
+    }
+
+    /**
+     * Resolve the winning PIN. The library's success() callback doesn't carry it, so derive it
+     * from the most reliable source available: a single user-supplied custom PIN is unambiguously
+     * the winner; otherwise a single-entry pins payload from the library; otherwise fall back to
+     * the last PIN echoed in the progress log.
+     */
+    private fun resolveSuccessPin(networkToTest: NetworkToTest): String {
+        (currentMethod as? ConnectionMethod.CUSTOM_PIN_WITH_VALUE)?.let { return it.pin }
+        networkToTest.pins?.singleOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+        return _connectionState.value.currentPin
     }
 
     // Additional callbacks for improved pattern

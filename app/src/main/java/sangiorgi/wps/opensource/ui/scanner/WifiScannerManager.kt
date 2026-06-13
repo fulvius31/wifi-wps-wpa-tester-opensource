@@ -31,6 +31,7 @@ import javax.inject.Singleton
 @Singleton
 class WifiScannerManager @Inject constructor(
     @param:dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
+    private val wifiManager: WifiManager,
     private val vendorDatabaseHelper: VendorDatabaseHelper,
     private val iwScanner: IwScanner,
 ) {
@@ -42,9 +43,6 @@ class WifiScannerManager @Inject constructor(
     // getScanResults(); @Volatile guarantees readers see the latest reference.
     @Volatile
     private var iwWpsInfoCache: Map<String, WpsInfo> = emptyMap()
-    private val wifiManager: WifiManager by lazy {
-        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    }
 
     /**
      * Flow of WiFi scan results
@@ -83,6 +81,28 @@ class WifiScannerManager @Inject constructor(
         awaitClose {
             context.unregisterReceiver(scanReceiver)
         }
+    }.distinctUntilChanged()
+
+    /**
+     * Emits the current WiFi-enabled state and every subsequent change, so the UI stays correct
+     * when the user toggles WiFi from system settings while the app is idle (not only on scan).
+     */
+    val wifiEnabledState: Flow<Boolean> = callbackFlow {
+        trySend(wifiManager.isWifiEnabled)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == WifiManager.WIFI_STATE_CHANGED_ACTION) {
+                    trySend(wifiManager.isWifiEnabled)
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        awaitClose { context.unregisterReceiver(receiver) }
     }.distinctUntilChanged()
 
     /**

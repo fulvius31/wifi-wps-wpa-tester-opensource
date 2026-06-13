@@ -46,8 +46,8 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleOpenDebug
 
-      - name: Run unit tests with coverage
-        run: ./gradlew createOpenDebugUnitTestCoverageReport
+      - name: Run unit tests with coverage gate
+        run: ./gradlew verifyCoverage
 
       - name: Stop gradle daemon
         run: ./gradlew --stop
