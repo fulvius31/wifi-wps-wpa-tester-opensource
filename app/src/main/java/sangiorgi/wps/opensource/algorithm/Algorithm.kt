@@ -93,6 +93,13 @@ class Algorithm private constructor(
         private const val TAG = "Algorithm"
 
         /**
+         * Creates an Algorithm from an already-built [AlgorithmFactory]. Preferred over the
+         * Context constructor when the factory is supplied by dependency injection, which keeps
+         * this class testable with a fake factory.
+         */
+        fun from(algorithmFactory: AlgorithmFactory): Algorithm = Algorithm(algorithmFactory)
+
+        /**
          * Algorithms that are automatically suggested (don't require serial files).
          */
         @JvmField
