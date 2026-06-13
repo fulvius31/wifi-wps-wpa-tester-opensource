@@ -1,0 +1,14 @@
+# Treat binary assets as binary so git never applies end-of-line conversion to them.
+# A CRLF/LF mangle previously corrupted app/src/main/assets/vendor.db (its newline bytes were
+# stripped), making it an unreadable "malformed" SQLite image on device.
+*.db       binary
+*.bin      binary
+*.so       binary
+*.png      binary
+*.webp     binary
+*.jpg      binary
+*.jpeg     binary
+*.ttf      binary
+*.otf      binary
+*.jks      binary
+*.keystore binary
