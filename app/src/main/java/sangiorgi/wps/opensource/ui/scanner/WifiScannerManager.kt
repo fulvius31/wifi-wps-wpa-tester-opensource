@@ -11,11 +11,13 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sangiorgi.wps.opensource.data.database.VendorDatabaseHelper
 import sangiorgi.wps.opensource.domain.models.WifiNetwork
 import sangiorgi.wps.opensource.domain.models.WpsInfo
@@ -36,7 +38,9 @@ class WifiScannerManager @Inject constructor(
         private const val TAG = "WifiScannerManager"
     }
 
-    // Cache for WPS info from iw scanner
+    // Cache for WPS info from iw scanner. Written on IO from refreshIwWpsInfo(), read on IO from
+    // getScanResults(); @Volatile guarantees readers see the latest reference.
+    @Volatile
     private var iwWpsInfoCache: Map<String, WpsInfo> = emptyMap()
     private val wifiManager: WifiManager by lazy {
         context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -53,8 +57,8 @@ class WifiScannerManager @Inject constructor(
                     val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
 
                     if (success) {
-                        val results = getScanResults()
-                        trySend(results)
+                        // Build results off the main thread; onReceive runs on the main thread.
+                        launch(Dispatchers.IO) { trySend(getScanResults()) }
                     }
                 }
             }
@@ -70,11 +74,11 @@ class WifiScannerManager @Inject constructor(
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
 
-        // Initial scan
-        startScan()
-
-        // Send initial results
-        trySend(getScanResults())
+        // Kick off the initial scan and emit current results, all off the main thread.
+        launch(Dispatchers.IO) {
+            startScan()
+            trySend(getScanResults())
+        }
 
         awaitClose {
             context.unregisterReceiver(scanReceiver)
@@ -82,9 +86,10 @@ class WifiScannerManager @Inject constructor(
     }.distinctUntilChanged()
 
     /**
-     * Start a WiFi scan
+     * Start a WiFi scan. Suspends because it refreshes the iw WPS cache, which runs a root shell
+     * command; must not be called from the main thread.
      */
-    fun startScan(): Boolean {
+    suspend fun startScan(): Boolean {
         // Check if WiFi is enabled first
         if (!wifiManager.isWifiEnabled) {
             return false
@@ -102,11 +107,12 @@ class WifiScannerManager @Inject constructor(
     }
 
     /**
-     * Get current scan results
+     * Get current scan results. Suspends because it performs SQLite vendor lookups per network;
+     * must not be called from the main thread.
      */
-    fun getScanResults(): List<WifiNetwork> {
+    suspend fun getScanResults(): List<WifiNetwork> = withContext(Dispatchers.IO) {
         if (!hasLocationPermission()) {
-            return emptyList()
+            return@withContext emptyList()
         }
 
         val scanResults = try {
@@ -116,7 +122,7 @@ class WifiScannerManager @Inject constructor(
             emptyList()
         }
 
-        return scanResults.map { scanResult ->
+        scanResults.map { scanResult ->
             val bssid = scanResult.BSSID.uppercase()
             val iwWpsInfo = iwWpsInfoCache[bssid]
 
@@ -149,12 +155,10 @@ class WifiScannerManager @Inject constructor(
      * Refresh WPS info cache using iw scanner (requires root)
      * Called when starting a new scan
      */
-    private fun refreshIwWpsInfo() {
+    private suspend fun refreshIwWpsInfo() {
         try {
             if (iwScanner.isAvailable()) {
-                iwWpsInfoCache = runBlocking {
-                    iwScanner.getAllWpsInfo()
-                }
+                iwWpsInfoCache = iwScanner.getAllWpsInfo()
                 Log.d(TAG, "Updated WPS info for ${iwWpsInfoCache.size} networks from iw")
             }
         } catch (e: Exception) {
@@ -184,10 +188,8 @@ class WifiScannerManager @Inject constructor(
     /**
      * Get vendor from BSSID (MAC address) using vendor database
      */
-    private fun getVendorFromBssid(bssid: String): String {
-        return runBlocking {
-            vendorDatabaseHelper.getVendorByMac(bssid)
-        }
+    private suspend fun getVendorFromBssid(bssid: String): String {
+        return vendorDatabaseHelper.getVendorByMac(bssid)
     }
 
     /**
